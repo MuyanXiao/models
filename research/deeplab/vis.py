@@ -86,7 +86,7 @@ flags.DEFINE_enum('colormap_type', 'pascal', ['pascal', 'cityscapes'],
 flags.DEFINE_boolean('also_save_raw_predictions', False,
                      'Also save raw predictions.')
 
-flags.DEFINE_integer('max_number_of_iterations', 0,
+flags.DEFINE_integer('max_number_of_iterations', 1,
                      'Maximum number of visualization iterations. Will loop '
                      'indefinitely upon nonpositive values.')
 
@@ -277,8 +277,9 @@ def main(unused_argv):
     while (FLAGS.max_number_of_iterations <= 0 or
            num_iters < FLAGS.max_number_of_iterations):
       num_iters += 1
-      last_checkpoint = slim.evaluation.wait_for_new_checkpoint(
-          FLAGS.checkpoint_dir, last_checkpoint)
+      #last_checkpoint = slim.evaluation.wait_for_new_checkpoint(
+      #    FLAGS.checkpoint_dir, last_checkpoint)
+      last_checkpoint = FLAGS.checkpoint_dir
       start = time.time()
       tf.logging.info(
           'Starting visualization at ' + time.strftime('%Y-%m-%d-%H:%M:%S',
@@ -309,8 +310,8 @@ def main(unused_argv):
           'Finished visualization at ' + time.strftime('%Y-%m-%d-%H:%M:%S',
                                                        time.gmtime()))
       time_to_next_eval = start + FLAGS.eval_interval_secs - time.time()
-      if time_to_next_eval > 0:
-        time.sleep(time_to_next_eval)
+      # if time_to_next_eval > 0:
+      #   time.sleep(time_to_next_eval)
 
 
 if __name__ == '__main__':
