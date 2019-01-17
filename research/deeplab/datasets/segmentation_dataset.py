@@ -81,6 +81,7 @@ _CITYSCAPES_INFORMATION = DatasetDescriptor(
     splits_to_sizes={
         'train': 2975,
         'val': 500,
+        'test': 10
     },
     num_classes=19,
     ignore_label=255,
@@ -112,7 +113,7 @@ _CUSTOM_INFORMATION = DatasetDescriptor(
     splits_to_sizes={
         'train': 2975,
         'val': 500,
-        'test': 100
+        'test': 10
     },
     num_classes=19,
     ignore_label=255,

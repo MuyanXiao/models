@@ -113,7 +113,7 @@ def _get_files(data, dataset_split):
     pattern = '*.%s' % (_DATA_FORMAT_MAP[data])
 
   search_files = os.path.join(
-      FLAGS.custom_root, _FOLDERS_MAP[data], dataset_split, '*', pattern)
+      FLAGS.custom_root, _FOLDERS_MAP[data], dataset_split, pattern)
   filenames = glob.glob(search_files)
   return sorted(filenames)
 
