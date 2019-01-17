@@ -75,7 +75,7 @@ flags.DEFINE_bool('add_flipped_images', False,
 flags.DEFINE_string('dataset', 'pascal_voc_seg',
                     'Name of the segmentation dataset.')
 
-flags.DEFINE_string('vis_split', 'val',
+flags.DEFINE_string('vis_split', 'test',
                     'Which split of the dataset used for visualizing results')
 
 flags.DEFINE_string('dataset_dir', None, 'Where the dataset reside.')
@@ -157,14 +157,14 @@ def _process_batch(sess, original_images, semantic_predictions, image_names,
   for i in range(num_image):
     image_height = np.squeeze(image_heights[i])
     image_width = np.squeeze(image_widths[i])
-    original_image = np.squeeze(original_images[i])
+    # original_image = np.squeeze(original_images[i])
     semantic_prediction = np.squeeze(semantic_predictions[i])
     crop_semantic_prediction = semantic_prediction[:image_height, :image_width]
 
     # Save image.
-    save_annotation.save_annotation(
-        original_image, save_dir, _IMAGE_FORMAT % (image_id_offset + i),
-        add_colormap=False)
+    # save_annotation.save_annotation(
+    #     original_image, save_dir, _IMAGE_FORMAT % (image_id_offset + i),
+    #     add_colormap=False)
 
     # Save prediction.
     save_annotation.save_annotation(
@@ -309,7 +309,7 @@ def main(unused_argv):
       tf.logging.info(
           'Finished visualization at ' + time.strftime('%Y-%m-%d-%H:%M:%S',
                                                        time.gmtime()))
-      time_to_next_eval = start + FLAGS.eval_interval_secs - time.time()
+      # time_to_next_eval = start + FLAGS.eval_interval_secs - time.time()
       # if time_to_next_eval > 0:
       #   time.sleep(time_to_next_eval)
 
