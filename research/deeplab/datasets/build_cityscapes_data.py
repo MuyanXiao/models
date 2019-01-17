@@ -156,18 +156,26 @@ def _convert_dataset(dataset_split):
         # Read the image.
         image_data = tf.gfile.FastGFile(image_files[i], 'rb').read()
         height, width = image_reader.read_image_dims(image_data)
-        # Read the semantic segmentation annotation.
-        seg_data = tf.gfile.FastGFile(label_files[i], 'rb').read()
-        seg_height, seg_width = label_reader.read_image_dims(seg_data)
-        if height != seg_height or width != seg_width:
-          raise RuntimeError('Shape mismatched between image and label.')
+
+        if dataset_split!='test':
+          # Read the semantic segmentation annotation.
+          seg_data = tf.gfile.FastGFile(label_files[i], 'rb').read()
+          seg_height, seg_width = label_reader.read_image_dims(seg_data)
+          if height != seg_height or width != seg_width:
+            raise RuntimeError('Shape mismatched between image and label.')
+
         # Convert to tf example.
         re_match = _IMAGE_FILENAME_RE.search(image_files[i])
         if re_match is None:
           raise RuntimeError('Invalid image filename: ' + image_files[i])
         filename = os.path.basename(re_match.group(1))
-        example = build_data.image_seg_to_tfexample(
-            image_data, filename, height, width, seg_data)
+
+        if dataset_split!='test':
+          example = build_data.image_seg_to_tfexample(
+              image_data, filename, height, width, seg_data)
+        else:
+          example = build_data.image_to_tfexample(image_data, filename, height, width)
+
         tfrecord_writer.write(example.SerializeToString())
     sys.stdout.write('\n')
     sys.stdout.flush()
@@ -175,7 +183,7 @@ def _convert_dataset(dataset_split):
 
 def main(unused_argv):
   # Only support converting 'train' and 'val' sets for now.
-  for dataset_split in ['train', 'val']:
+  for dataset_split in ['train', 'val', 'test']:
     _convert_dataset(dataset_split)
 
 
