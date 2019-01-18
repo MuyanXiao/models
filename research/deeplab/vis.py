@@ -92,7 +92,7 @@ flags.DEFINE_integer('max_number_of_iterations', 1,
                      'indefinitely upon nonpositive values.')
 
 # The folder where semantic segmentation predictions are saved.
-_SEMANTIC_PREDICTION_SAVE_FOLDER = 'segmentation_results'
+_SEMANTIC_PREDICTION_SAVE_FOLDER = 'segmentation_results' #  + FLAGS.model_variant
 
 # The folder where raw semantic segmentation predictions are saved.
 _RAW_SEMANTIC_PREDICTION_SAVE_FOLDER = 'raw_segmentation_results'
@@ -203,7 +203,7 @@ def main(unused_argv):
 
   # Prepare for visualization.
   tf.gfile.MakeDirs(FLAGS.vis_logdir)
-  save_dir = os.path.join(FLAGS.vis_logdir, _SEMANTIC_PREDICTION_SAVE_FOLDER)
+  save_dir = os.path.join(FLAGS.vis_logdir, _SEMANTIC_PREDICTION_SAVE_FOLDER+FLAGS.model_variant)
   tf.gfile.MakeDirs(save_dir)
   raw_save_dir = os.path.join(
       FLAGS.vis_logdir, _RAW_SEMANTIC_PREDICTION_SAVE_FOLDER)
@@ -216,11 +216,14 @@ def main(unused_argv):
   curr_time = time.strftime("%H:%M:%S")
   file_id = curr_date[0:2] + curr_date[3:5] + '_' + curr_time[0:2]
 
-  text_file = open(os.path.join(FLAGS.vis_logdir, "Log_" + file_id + ".txt"), "w")
+  text_file = open(os.path.join(save_dir, "Log_" + file_id + ".txt"), "w")
   text_file.write("Date: %s\n" % curr_date)
-  text_file.write("Start time: %s\n\n" % curr_time)
+  text_file.write("Start time: %s\n" % curr_time)
+  text_file.write("Model variant: %s\n" % FLAGS.model_variant)
 
+  # with tf.device('/device:GPU:0'):
   g = tf.Graph()
+
   with g.as_default():
     samples = input_generator.get(dataset,
                                   FLAGS.vis_crop_size,
@@ -284,6 +287,7 @@ def main(unused_argv):
                              summary_writer=None,
                              global_step=None,
                              saver=saver)
+    # sv.PrepareSession(config=tf.ConfigProto(log_device_placement=True))
     num_batches = int(math.ceil(
         dataset.num_samples / float(FLAGS.vis_batch_size)))
     last_checkpoint = None
@@ -310,6 +314,8 @@ def main(unused_argv):
         image_id_offset = 0
         for batch in range(num_batches):
           tf.logging.info('Visualizing batch %d / %d', batch + 1, num_batches)
+          t = TicToc()
+          t.tic()
           _process_batch(sess=sess,
                          original_images=samples[common.ORIGINAL_IMAGE],
                          semantic_predictions=predictions,
@@ -321,6 +327,7 @@ def main(unused_argv):
                          raw_save_dir=raw_save_dir,
                          train_id_to_eval_id=train_id_to_eval_id,
                          text_file=text_file)
+
           image_id_offset += FLAGS.vis_batch_size
 
       tf.logging.info(
