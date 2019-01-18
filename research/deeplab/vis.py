@@ -27,6 +27,7 @@ from deeplab import model
 from deeplab.datasets import segmentation_dataset
 from deeplab.utils import input_generator
 from deeplab.utils import save_annotation
+from pytictoc import TicToc
 
 slim = tf.contrib.slim
 
@@ -131,7 +132,7 @@ def _convert_train_id_to_eval_id(prediction, train_id_to_eval_id):
 
 def _process_batch(sess, original_images, semantic_predictions, image_names,
                    image_heights, image_widths, image_id_offset, save_dir,
-                   raw_save_dir, train_id_to_eval_id=None):
+                   raw_save_dir, train_id_to_eval_id=None, text_file=None):
   """Evaluates one single batch qualitatively.
 
   Args:
@@ -146,12 +147,18 @@ def _process_batch(sess, original_images, semantic_predictions, image_names,
     raw_save_dir: The directory where the raw predictions will be saved.
     train_id_to_eval_id: A list mapping from train id to eval id.
   """
+  t = TicToc()
+  t.tic()
   (original_images,
    semantic_predictions,
    image_names,
    image_heights,
    image_widths) = sess.run([original_images, semantic_predictions,
                              image_names, image_heights, image_widths])
+
+  tElapse = t.tocvalue()
+  text_file.write("Testing image %s\n" % image_names[0])
+  text_file.write("  %f\n" % tElapse)
 
   num_image = semantic_predictions.shape[0]
   for i in range(num_image):
@@ -203,6 +210,15 @@ def main(unused_argv):
   tf.gfile.MakeDirs(raw_save_dir)
 
   tf.logging.info('Visualizing on %s set', FLAGS.vis_split)
+
+  # record the settings,training process,results in a file
+  curr_date = time.strftime("%d/%m/%Y")
+  curr_time = time.strftime("%H:%M:%S")
+  file_id = curr_date[0:2] + curr_date[3:5] + '_' + curr_time[0:2]
+
+  text_file = open(os.path.join(FLAGS.vis_logdir, "Log_" + file_id + ".txt"), "w")
+  text_file.write("Date: %s\n" % curr_date)
+  text_file.write("Start time: %s\n\n" % curr_time)
 
   g = tf.Graph()
   with g.as_default():
@@ -303,7 +319,8 @@ def main(unused_argv):
                          image_id_offset=image_id_offset,
                          save_dir=save_dir,
                          raw_save_dir=raw_save_dir,
-                         train_id_to_eval_id=train_id_to_eval_id)
+                         train_id_to_eval_id=train_id_to_eval_id,
+                         text_file=text_file)
           image_id_offset += FLAGS.vis_batch_size
 
       tf.logging.info(
@@ -312,6 +329,7 @@ def main(unused_argv):
       # time_to_next_eval = start + FLAGS.eval_interval_secs - time.time()
       # if time_to_next_eval > 0:
       #   time.sleep(time_to_next_eval)
+    text_file.close()
 
 
 if __name__ == '__main__':
