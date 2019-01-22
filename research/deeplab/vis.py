@@ -28,6 +28,8 @@ from deeplab.datasets import segmentation_dataset
 from deeplab.utils import input_generator
 from deeplab.utils import save_annotation
 from pytictoc import TicToc
+import sys
+from tensorflow.python.client import timeline
 
 slim = tf.contrib.slim
 
@@ -108,6 +110,8 @@ _PREDICTION_FORMAT = '%06d_prediction'
 _CITYSCAPES_TRAIN_ID_TO_EVAL_ID = [7, 8, 11, 12, 13, 17, 19, 20, 21, 22,
                                    23, 24, 25, 26, 27, 28, 31, 32, 33]
 
+_I = 0
+
 
 def _convert_train_id_to_eval_id(prediction, train_id_to_eval_id):
   """Converts the predicted label for evaluation.
@@ -147,6 +151,8 @@ def _process_batch(sess, original_images, semantic_predictions, image_names,
     raw_save_dir: The directory where the raw predictions will be saved.
     train_id_to_eval_id: A list mapping from train id to eval id.
   """
+  # run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+  # run_metadata = tf.RunMetadata()
   t = TicToc()
   t.tic()
   (original_images,
@@ -154,7 +160,12 @@ def _process_batch(sess, original_images, semantic_predictions, image_names,
    image_names,
    image_heights,
    image_widths) = sess.run([original_images, semantic_predictions,
-                             image_names, image_heights, image_widths])
+                             image_names, image_heights, image_widths])  # , options=run_options, run_metadata=run_metadata)
+
+  # tl = timeline.Timeline(run_metadata.step_stats)
+  # ctf = tl.generate_chrome_trace_format()
+  # with open('/home/zhaopeng/Muyan/custom/vis_dir/segmentation_resultsmobilenet_v2/timeline'+str(batch_num)+'.json','w') as f:
+  #     f.write(ctf)
 
   tElapse = t.tocvalue()
   text_file.write("Testing image %s\n" % image_names[0])
@@ -168,6 +179,8 @@ def _process_batch(sess, original_images, semantic_predictions, image_names,
     semantic_prediction = np.squeeze(semantic_predictions[i])
     crop_semantic_prediction = semantic_prediction[:image_height, :image_width]
 
+    image_filename = os.path.basename(image_names[i])
+    image_name = image_filename.decode("utf-8")
     # Save image.
     # save_annotation.save_annotation(
     #     original_image, save_dir, _IMAGE_FORMAT % (image_id_offset + i),
@@ -176,12 +189,11 @@ def _process_batch(sess, original_images, semantic_predictions, image_names,
     # Save prediction.
     save_annotation.save_annotation(
         crop_semantic_prediction, save_dir,
-        _PREDICTION_FORMAT % (image_id_offset + i), add_colormap=True,
+        image_name[:len(image_name)-4],  # _PREDICTION_FORMAT % (image_id_offset + i),
+        add_colormap=True,
         colormap_type=FLAGS.colormap_type)
 
     if FLAGS.also_save_raw_predictions:
-      image_filename = os.path.basename(image_names[i])
-
       if train_id_to_eval_id is not None:
         crop_semantic_prediction = _convert_train_id_to_eval_id(
             crop_semantic_prediction,
@@ -203,7 +215,7 @@ def main(unused_argv):
 
   # Prepare for visualization.
   tf.gfile.MakeDirs(FLAGS.vis_logdir)
-  save_dir = os.path.join(FLAGS.vis_logdir, _SEMANTIC_PREDICTION_SAVE_FOLDER+FLAGS.model_variant)
+  save_dir = os.path.join(FLAGS.vis_logdir, _SEMANTIC_PREDICTION_SAVE_FOLDER+'_'+FLAGS.model_variant)
   tf.gfile.MakeDirs(save_dir)
   raw_save_dir = os.path.join(
       FLAGS.vis_logdir, _RAW_SEMANTIC_PREDICTION_SAVE_FOLDER)
@@ -314,8 +326,6 @@ def main(unused_argv):
         image_id_offset = 0
         for batch in range(num_batches):
           tf.logging.info('Visualizing batch %d / %d', batch + 1, num_batches)
-          t = TicToc()
-          t.tic()
           _process_batch(sess=sess,
                          original_images=samples[common.ORIGINAL_IMAGE],
                          semantic_predictions=predictions,
@@ -327,7 +337,6 @@ def main(unused_argv):
                          raw_save_dir=raw_save_dir,
                          train_id_to_eval_id=train_id_to_eval_id,
                          text_file=text_file)
-
           image_id_offset += FLAGS.vis_batch_size
 
       tf.logging.info(

@@ -67,7 +67,7 @@ tf.app.flags.DEFINE_string(
     'Path to save converted SSTable of TensorFlow examples.')
 
 
-_NUM_SHARDS = 10
+_NUM_SHARDS = 1
 
 # A map from data type to folder name that saves the data.
 _FOLDERS_MAP = {

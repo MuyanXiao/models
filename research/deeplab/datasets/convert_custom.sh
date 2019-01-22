@@ -32,10 +32,10 @@
 set -e
 
 CURRENT_DIR=$(pwd)
-WORK_DIR="."
+WORK_DIR="/home/zhaopeng/Muyan/"
 
 # Root path for Cityscapes dataset.
-CUSTOM_ROOT="${WORK_DIR}/custom"
+CUSTOM_ROOT="${WORK_DIR}/autovision"
 
 # Build TFRecords of the dataset.
 # First, create output directory for storing TFRecords.
