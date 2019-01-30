@@ -17,7 +17,6 @@
 See model.py for more details and usage.
 """
 
-from __future__ import print_function
 import math
 import six
 import tensorflow as tf
@@ -78,7 +77,7 @@ flags.DEFINE_string('eval_split', 'val',
 
 flags.DEFINE_string('dataset_dir', None, 'Where the dataset reside.')
 
-flags.DEFINE_integer('max_number_of_evaluations', 1,
+flags.DEFINE_integer('max_number_of_evaluations', 0,
                      'Maximum number of eval iterations. Will loop '
                      'indefinitely upon nonpositive values.')
 
@@ -158,24 +157,17 @@ def main(unused_argv):
                     FLAGS.eval_batch_size, num_batches)
 
     num_eval_iters = None
-    print(FLAGS.max_number_of_evaluations)
     if FLAGS.max_number_of_evaluations > 0:
       num_eval_iters = FLAGS.max_number_of_evaluations
-    # slim.evaluation.evaluation_loop(
-    #     master=FLAGS.master,
-    #     checkpoint_dir=FLAGS.checkpoint_dir,
-    #     logdir=FLAGS.eval_logdir,
-    #     num_evals=num_batches,
-    #     eval_op=list(metrics_to_updates.values()),
-    #     max_number_of_evaluations=num_eval_iters,
-    #     eval_interval_secs=FLAGS.eval_interval_secs)
-      print("eval")
-      slim.evaluation.evaluate_once(
-          master=FLAGS.master,
-          checkpoint_path=FLAGS.checkpoint_dir,
-          logdir=FLAGS.eval_logdir,
-          num_evals=num_batches
-      )
+    slim.evaluation.evaluation_loop(
+        master=FLAGS.master,
+        checkpoint_dir=FLAGS.checkpoint_dir,
+        logdir=FLAGS.eval_logdir,
+        num_evals=num_batches,
+        eval_op=list(metrics_to_updates.values()),
+        max_number_of_evaluations=num_eval_iters,
+        eval_interval_secs=FLAGS.eval_interval_secs)
+
 
 if __name__ == '__main__':
   flags.mark_flag_as_required('checkpoint_dir')

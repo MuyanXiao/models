@@ -27,7 +27,6 @@ from deeplab import model
 from deeplab.datasets import segmentation_dataset
 from deeplab.utils import input_generator
 from deeplab.utils import save_annotation
-from pytictoc import TicToc
 
 slim = tf.contrib.slim
 
@@ -76,7 +75,7 @@ flags.DEFINE_bool('add_flipped_images', False,
 flags.DEFINE_string('dataset', 'pascal_voc_seg',
                     'Name of the segmentation dataset.')
 
-flags.DEFINE_string('vis_split', 'test',
+flags.DEFINE_string('vis_split', 'val',
                     'Which split of the dataset used for visualizing results')
 
 flags.DEFINE_string('dataset_dir', None, 'Where the dataset reside.')
@@ -87,7 +86,7 @@ flags.DEFINE_enum('colormap_type', 'pascal', ['pascal', 'cityscapes'],
 flags.DEFINE_boolean('also_save_raw_predictions', False,
                      'Also save raw predictions.')
 
-flags.DEFINE_integer('max_number_of_iterations', 1,
+flags.DEFINE_integer('max_number_of_iterations', 0,
                      'Maximum number of visualization iterations. Will loop '
                      'indefinitely upon nonpositive values.')
 
@@ -132,7 +131,7 @@ def _convert_train_id_to_eval_id(prediction, train_id_to_eval_id):
 
 def _process_batch(sess, original_images, semantic_predictions, image_names,
                    image_heights, image_widths, image_id_offset, save_dir,
-                   raw_save_dir, train_id_to_eval_id=None, text_file=None):
+                   raw_save_dir, train_id_to_eval_id=None):
   """Evaluates one single batch qualitatively.
 
   Args:
@@ -147,8 +146,6 @@ def _process_batch(sess, original_images, semantic_predictions, image_names,
     raw_save_dir: The directory where the raw predictions will be saved.
     train_id_to_eval_id: A list mapping from train id to eval id.
   """
-  t = TicToc()
-  t.tic()
   (original_images,
    semantic_predictions,
    image_names,
@@ -156,22 +153,18 @@ def _process_batch(sess, original_images, semantic_predictions, image_names,
    image_widths) = sess.run([original_images, semantic_predictions,
                              image_names, image_heights, image_widths])
 
-  tElapse = t.tocvalue()
-  text_file.write("Testing image %s\n" % image_names[0])
-  text_file.write("  %f\n" % tElapse)
-
   num_image = semantic_predictions.shape[0]
   for i in range(num_image):
     image_height = np.squeeze(image_heights[i])
     image_width = np.squeeze(image_widths[i])
-    # original_image = np.squeeze(original_images[i])
+    original_image = np.squeeze(original_images[i])
     semantic_prediction = np.squeeze(semantic_predictions[i])
     crop_semantic_prediction = semantic_prediction[:image_height, :image_width]
 
     # Save image.
-    # save_annotation.save_annotation(
-    #     original_image, save_dir, _IMAGE_FORMAT % (image_id_offset + i),
-    #     add_colormap=False)
+    save_annotation.save_annotation(
+        original_image, save_dir, _IMAGE_FORMAT % (image_id_offset + i),
+        add_colormap=False)
 
     # Save prediction.
     save_annotation.save_annotation(
@@ -197,7 +190,7 @@ def main(unused_argv):
   dataset = segmentation_dataset.get_dataset(
       FLAGS.dataset, FLAGS.vis_split, dataset_dir=FLAGS.dataset_dir)
   train_id_to_eval_id = None
-  if dataset.name == segmentation_dataset.get_cityscapes_dataset_name() or 'custom':
+  if dataset.name == segmentation_dataset.get_cityscapes_dataset_name():
     tf.logging.info('Cityscapes requires converting train_id to eval_id.')
     train_id_to_eval_id = _CITYSCAPES_TRAIN_ID_TO_EVAL_ID
 
@@ -210,15 +203,6 @@ def main(unused_argv):
   tf.gfile.MakeDirs(raw_save_dir)
 
   tf.logging.info('Visualizing on %s set', FLAGS.vis_split)
-
-  # record the settings,training process,results in a file
-  curr_date = time.strftime("%d/%m/%Y")
-  curr_time = time.strftime("%H:%M:%S")
-  file_id = curr_date[0:2] + curr_date[3:5] + '_' + curr_time[0:2]
-
-  text_file = open(os.path.join(FLAGS.vis_logdir, "Log_" + file_id + ".txt"), "w")
-  text_file.write("Date: %s\n" % curr_date)
-  text_file.write("Start time: %s\n\n" % curr_time)
 
   g = tf.Graph()
   with g.as_default():
@@ -293,9 +277,8 @@ def main(unused_argv):
     while (FLAGS.max_number_of_iterations <= 0 or
            num_iters < FLAGS.max_number_of_iterations):
       num_iters += 1
-      #last_checkpoint = slim.evaluation.wait_for_new_checkpoint(
-      #    FLAGS.checkpoint_dir, last_checkpoint)
-      last_checkpoint = FLAGS.checkpoint_dir
+      last_checkpoint = slim.evaluation.wait_for_new_checkpoint(
+          FLAGS.checkpoint_dir, last_checkpoint)
       start = time.time()
       tf.logging.info(
           'Starting visualization at ' + time.strftime('%Y-%m-%d-%H:%M:%S',
@@ -319,17 +302,15 @@ def main(unused_argv):
                          image_id_offset=image_id_offset,
                          save_dir=save_dir,
                          raw_save_dir=raw_save_dir,
-                         train_id_to_eval_id=train_id_to_eval_id,
-                         text_file=text_file)
+                         train_id_to_eval_id=train_id_to_eval_id)
           image_id_offset += FLAGS.vis_batch_size
 
       tf.logging.info(
           'Finished visualization at ' + time.strftime('%Y-%m-%d-%H:%M:%S',
                                                        time.gmtime()))
-      # time_to_next_eval = start + FLAGS.eval_interval_secs - time.time()
-      # if time_to_next_eval > 0:
-      #   time.sleep(time_to_next_eval)
-    text_file.close()
+      time_to_next_eval = start + FLAGS.eval_interval_secs - time.time()
+      if time_to_next_eval > 0:
+        time.sleep(time_to_next_eval)
 
 
 if __name__ == '__main__':

@@ -95,6 +95,12 @@ def run(flags_obj):
     raise ValueError('dtype fp16 is not supported in Keras. Use the default '
                      'value(fp32).')
 
+  data_format = flags_obj.data_format
+  if data_format is None:
+    data_format = ('channels_first'
+                   if tf.test.is_built_with_cuda() else 'channels_last')
+  tf.keras.backend.set_image_data_format(data_format)
+
   per_device_batch_size = distribution_utils.per_device_batch_size(
       flags_obj.batch_size, flags_core.get_num_gpus(flags_obj))
 
@@ -149,30 +155,37 @@ def run(flags_obj):
 
   validation_data = eval_input_dataset
   if flags_obj.skip_eval:
+    # Only build the training graph. This reduces memory usage introduced by
+    # control flow ops in layers that have different implementations for
+    # training and inference (e.g., batch norm).
+    tf.keras.backend.set_learning_phase(1)
     num_eval_steps = None
     validation_data = None
 
-  model.fit(train_input_dataset,
-            epochs=train_epochs,
-            steps_per_epoch=train_steps,
-            callbacks=[
-                time_callback,
-                lr_callback,
-                tensorboard_callback
-                ],
-            validation_steps=num_eval_steps,
-            validation_data=validation_data,
-            verbose=1)
+  history = model.fit(train_input_dataset,
+                      epochs=train_epochs,
+                      steps_per_epoch=train_steps,
+                      callbacks=[
+                          time_callback,
+                          lr_callback,
+                          tensorboard_callback
+                      ],
+                      validation_steps=num_eval_steps,
+                      validation_data=validation_data,
+                      verbose=1)
 
+  eval_output = None
   if not flags_obj.skip_eval:
-    model.evaluate(eval_input_dataset,
-                   steps=num_eval_steps,
-                   verbose=1)
+    eval_output = model.evaluate(eval_input_dataset,
+                                 steps=num_eval_steps,
+                                 verbose=1)
+  stats = keras_common.build_stats(history, eval_output, time_callback)
+  return stats
 
 
 def main(_):
   with logger.benchmark_context(flags.FLAGS):
-    run(flags.FLAGS)
+    return run(flags.FLAGS)
 
 
 if __name__ == '__main__':

@@ -108,6 +108,12 @@ def run(flags_obj):
   per_device_batch_size = distribution_utils.per_device_batch_size(
       flags_obj.batch_size, flags_core.get_num_gpus(flags_obj))
 
+  data_format = flags_obj.data_format
+  if data_format is None:
+    data_format = ('channels_first'
+                   if tf.test.is_built_with_cuda() else 'channels_last')
+  tf.keras.backend.set_image_data_format(data_format)
+
   if flags_obj.use_synthetic_data:
     input_fn = keras_common.get_synth_input_fn(
         height=cifar_main.HEIGHT,
@@ -160,6 +166,7 @@ def run(flags_obj):
 
   validation_data = eval_input_dataset
   if flags_obj.skip_eval:
+    tf.keras.backend.set_learning_phase(1)
     num_eval_steps = None
     validation_data = None
 
@@ -179,13 +186,13 @@ def run(flags_obj):
     eval_output = model.evaluate(eval_input_dataset,
                                  steps=num_eval_steps,
                                  verbose=1)
-  stats = keras_common.build_stats(history, eval_output)
+  stats = keras_common.build_stats(history, eval_output, time_callback)
   return stats
 
 
 def main(_):
   with logger.benchmark_context(flags.FLAGS):
-    run(flags.FLAGS)
+    return run(flags.FLAGS)
 
 
 if __name__ == '__main__':
